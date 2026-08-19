@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="8dp">
+
+    <Button android:id="@+id/btnScanConnect"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Scan + Verbinden" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <EditText android:id="@+id/editMac"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:hint="MAC, z.B. AA:BB:CC:DD:EE:FF"
+            android:inputType="textCapCharacters"
+            android:textSize="12sp" />
+        <Button android:id="@+id/btnDirectConnect"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Direkt verbinden" android:textSize="10sp" />
+    </LinearLayout>
+
+    <TextView android:id="@+id/txtStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Getrennt"
+        android:textStyle="bold"
+        android:padding="4dp" />
+
+    <TextView android:id="@+id/txtTemperature"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Temperatur: --"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:padding="8dp"
+        android:background="#20000000" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <Spinner android:id="@+id/spinnerChar"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <Button android:id="@+id/btnLedOn"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="64dp"
+            android:text="LED AN" android:textSize="16sp" android:textStyle="bold"
+            android:backgroundTint="#2E7D32" android:textColor="#FFFFFF" />
+        <Button android:id="@+id/btnLedOff"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="64dp"
+            android:text="LED AUS" android:textSize="16sp" android:textStyle="bold"
+            android:backgroundTint="#C62828" android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <Button android:id="@+id/btnCoolOn"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="Kuehlschalter AN (0x1011=02)" android:textSize="9sp" />
+        <Button android:id="@+id/btnCoolOff"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="Kuehlschalter AUS (0x1011=03)" android:textSize="9sp" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Kuehlstufe (0x1012) - Slider + Wert"
+        android:textSize="11sp"
+        android:paddingTop="4dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+        <SeekBar android:id="@+id/seekFan"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:max="255" />
+        <TextView android:id="@+id/txtFanValue"
+            android:layout_width="90dp" android:layout_height="wrap_content"
+            android:text="0x28 (40)" android:textSize="11sp" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Echte Goper-Stufen 1-9:"
+        android:textSize="10sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <Button android:id="@+id/btnStufe1"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="1" android:textSize="10sp" android:padding="2dp" />
+        <Button android:id="@+id/btnStufe2"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="2" android:textSize="10sp" android:padding="2dp" />
+        <Button android:id="@+id/btnStufe3"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="3" android:textSize="10sp" android:padding="2dp" />
+        <Button android:id="@+id/btnStufe4"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="4" android:textSize="10sp" android:padding="2dp" />
+        <Button android:id="@+id/btnStufe5"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="5" android:textSize="10sp" android:padding="2dp" />
+        <Button android:id="@+id/btnStufe6"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="6" android:textSize="10sp" android:padding="2dp" />
+        <Button android:id="@+id/btnStufe7"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="7" android:textSize="10sp" android:padding="2dp" />
+        <Button android:id="@+id/btnStufe8"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="8" android:textSize="10sp" android:padding="2dp" />
+        <Button android:id="@+id/btnStufe9"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="9" android:textSize="10sp" android:padding="2dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <Button android:id="@+id/btnFanSend"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="Slider-Rohwert senden" android:textSize="9sp" />
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <Button android:id="@+id/btnDiabloOn"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="Diablo AN (0x1017=01)" android:textSize="9sp" />
+        <Button android:id="@+id/btnDiabloOff"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="Diablo AUS (0x1017=00)" android:textSize="9sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <Button android:id="@+id/btnAutoTempOn"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="Auto-Temp AN (0x1018=01)" android:textSize="9sp" />
+        <Button android:id="@+id/btnAutoTempOff"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="Auto-Temp AUS (0x1018=00)" android:textSize="9sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <EditText android:id="@+id/editHex"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:hint="Eigene Hex-Bytes, z.B. 26 02 05 00 2D" />
+        <Button android:id="@+id/btnSendHex"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Senden" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <Button android:id="@+id/btnShare"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="Log teilen / kopieren" />
+        <Button android:id="@+id/btnClear"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="Log leeren" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+        <TextView android:id="@+id/txtLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textIsSelectable="true"
+            android:fontFamily="monospace"
+            android:textSize="11sp" />
+    </ScrollView>
+
+</LinearLayout>

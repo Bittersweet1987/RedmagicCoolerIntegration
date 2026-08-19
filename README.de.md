@@ -21,6 +21,7 @@ derselben, an echter Hardware verifizierten Protokolldokumentation.
 | [`PROTOCOL.md`](PROTOCOL.md) | Dasselbe Dokument auf Englisch |
 | `android/` | Kotlin-Implementierung als Android-Library-Modul (`com.romestylez.redmagiccooler`) |
 | `swift/` | Swift-Implementierung als Swift Package (`RedMagicCoolerLib`, CoreBluetooth) |
+| [`test-app/`](test-app/) | Eigenständige Android-Test-App, mit der das Protokoll ermittelt und verifiziert wurde. Spricht rohes GATT und nutzt die Bibliothek nicht — praktisch zum Gegenprüfen an eigener Hardware. |
 
 Wer nur das Protokoll braucht und selbst implementieren will, kommt mit `PROTOCOL.de.md` allein aus.
 

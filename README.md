@@ -21,6 +21,7 @@ protocol documentation, which was verified against real hardware.
 | [`PROTOCOL.de.md`](PROTOCOL.de.md) | Same document in German / Dasselbe Dokument auf Deutsch |
 | `android/` | Kotlin implementation as an Android library module (`com.romestylez.redmagiccooler`) |
 | `swift/` | Swift implementation as a Swift package (`RedMagicCoolerLib`, CoreBluetooth) |
+| [`test-app/`](test-app/) | Standalone Android test app used to reverse engineer and verify the protocol. Talks raw GATT, does not use the library — handy for cross-checking against your own hardware. |
 
 If you only need the protocol and want to implement it yourself, `PROTOCOL.md` is sufficient on its
 own.
