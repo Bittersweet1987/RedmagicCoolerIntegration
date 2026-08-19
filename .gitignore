@@ -1,0 +1,12 @@
+# Android / Gradle
+build/
+.gradle/
+local.properties
+*.iml
+.idea/
+
+# Swift / Xcode
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate
