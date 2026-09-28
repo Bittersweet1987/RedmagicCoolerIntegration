@@ -1,181 +1,275 @@
-# RedMagic VC Cooler 6 Pro – Funktionsübersicht für Entwickler
+# RedMagic Kühler – Funktionsübersicht für Entwickler
 
-Alle Werte in dieser Tabelle stammen aus [`PROTOCOL.md`](PROTOCOL.md) (statische Analyse der
-Goper-App + Bluetooth-HCI-Snoop + Live-Test auf echter Hardware, Firmware V6.1.5). Die
-Referenzimplementierung liegt in
-[`android/src/main/kotlin/com/romestylez/redmagiccooler/RedMagicCooler6Pro.kt`](android/src/main/kotlin/com/romestylez/redmagiccooler/RedMagicCooler6Pro.kt).
+**Quelle:** [`jty657/RedMagic8Pro-Cooler-Controller`](https://github.com/jty657/RedMagic8Pro-Cooler-Controller)
+(Android-Controller für den RedMagic 8 Pro Kühler). Dieses Dokument listet die dortigen Funktionen
+mit deutschem Namen und deutscher Erklärung, direkt aus dem dortigen Quelltext abgelesen
+(`ble/BleManager.java`, `control/FanController.java`, `control/LedController.java`,
+`MainActivity.java`).
 
-**Vorbedingung für alle Funktionen:** Verbindung zum Kühler steht (`connectGatt` + `discoverServices`),
-Service `d52082ad-e805-9f97-9d4e-1c682d9c9ce6` wurde gefunden. Wie man den Kühler überhaupt findet,
-steht in [`ble-diagnose/DEVELOPER.md`](ble-diagnose/DEVELOPER.md) (Werbe-UUID `0x4A41`, nicht die
-Service-UUID oben).
+> **Anderes Gerät, gleiche Characteristic-Nummern:** Dieses Projekt steuert den RedMagic **8 Pro**
+> Kühler, nicht den 6 Pro, für den [`PROTOCOL.md`](PROTOCOL.md) in diesem Repo per HCI-Snoop und
+> Live-Test verifiziert wurde. Beide Kühler nutzen dieselben Characteristic-Nummern
+> (`0x1011`–`0x1018`) im selben Service `d52082ad-e805-9f97-9d4e-1c682d9c9ce6`, aber teils andere
+> Werte und Bedeutungen – siehe die Hinweise unter jeder Funktion. Vor dem produktiven Einsatz an
+> echter 6-Pro-Hardware mit der [BLE-Diagnose-App](ble-diagnose/) gegenprüfen.
 
----
-
-## 1. Kühlung ein/aus
-
-| | |
-|---|---|
-| Characteristic | `0x1011`, Read + Write |
-| Wert | 1 Byte: `0x02` = an, `0x03` = aus |
-| Status lesbar | ja, per `Read` |
-
-**Implementierung:**
-```kotlin
-gatt.writeCharacteristic(char0x1011, byteArrayOf(0x02), WRITE_TYPE_DEFAULT) // an
-gatt.writeCharacteristic(char0x1011, byteArrayOf(0x03), WRITE_TYPE_DEFAULT) // aus
-```
-Referenz: `setCoolingEnabled(enabled: Boolean)` in `RedMagicCooler6Pro.kt:308`.
+**Vorbedingung für alle Funktionen:** Verbindung zum Kühler steht (`connectGatt` + `discoverServices`).
+Wie man den Kühler überhaupt findet, steht in [`ble-diagnose/DEVELOPER.md`](ble-diagnose/DEVELOPER.md).
 
 ---
 
-## 2. Lüfterstufe (1–9)
+## Verbindung
 
-| | |
-|---|---|
-| Characteristic | `0x1012`, Read + Write |
-| Wert | 1 Byte, **Wertetabelle**, nicht linear |
-| Status lesbar | ja, per `Read` |
-
-Die Skala ist nicht gleichmäßig (Stufen 1–5 steigen um 6, Stufen 5–9 um 4). Deshalb Werte aus
-dieser Tabelle nehmen, nicht interpolieren:
-
-| Stufe | Hex | Dezimal |
+| Funktion | Deutscher Name | Wie |
 |---|---|---|
-| 1 (min) | `0x28` | 40 |
-| 2 | `0x2E` | 46 |
-| 3 | `0x34` | 52 |
-| 4 | `0x3A` | 58 |
-| 5 | `0x40` | 64 |
-| 6 | `0x44` | 68 |
-| 7 | `0x48` | 72 |
-| 8 | `0x4C` | 76 |
-| 9 (max) | `0x50` | 80 |
+| Scannen & Verbinden | **Suchen und verbinden** | `startScan()` scannt 6 s ohne Filter, zeigt alle gefundenen Geräte in einer Liste, Nutzer wählt manuell aus. Danach `device.connectGatt(context, false, callback, TRANSPORT_LE)`. Kein automatischer Namens- oder UUID-Filter. |
+| Trennen | **Verbindung trennen** | `disconnect()` |
+
+Beim Verbindungsaufbau werden **alle** Services nach beschreibbaren Characteristics mit den
+Kurz-UUIDs `0x1011`, `0x1012`, `0x1013`, `0x1017`, `0x1018` durchsucht (kein gezielter Zugriff auf
+den bekannten Service). Nur diese fünf werden verwendet – `0x1014`–`0x1016` und `0x1019` (Temperatur/
+Telemetrie) werden **nicht** gelesen oder abonniert. Diese App hat also keine Temperaturanzeige.
+
+---
+
+## Lüfter
+
+### 1. Manuelle Lüfterstufe
+
+**Deutscher Name:** Manuelle Stufe (1–10)
+
+Regler von 1 bis 10. Umgerechnet in ein Byte auf `0x1012` nach der Formel:
+
+```
+Byte = 0x28 + 4 × (Stufe − 1)     // Stufe 1 = 0x28 (40), Stufe 10 = 0x64 (100)
+```
+
+Beim Setzen einer Stufe wird immer dieselbe Reihenfolge geschrieben:
+
+| Characteristic | Wert | Bedeutung hier |
+|---|---|---|
+| `0x1011` | `0x02` | (immer dieser Wert, siehe Hinweis unten) |
+| `0x1018` | `0x00` | Auto-Temperaturregelung aus |
+| `0x1017` | `0x00` | Berserker-Modus aus |
+| `0x1012` | berechneter Wert | die gewählte Stufe |
 
 **Implementierung:**
-```kotlin
-val FAN_LEVELS = byteArrayOf(0x28, 0x2E, 0x34, 0x3A, 0x40, 0x44, 0x48, 0x4C, 0x50)
-gatt.writeCharacteristic(char0x1012, byteArrayOf(FAN_LEVELS[stufe - 1]), WRITE_TYPE_DEFAULT)
+```java
+byte fanValue = (byte) (0x28 + 4 * (level - 1));
+write(c1011, new byte[]{0x02});
+write(c1018, new byte[]{0x00});
+write(c1017, new byte[]{0x00});
+write(c1012, new byte[]{fanValue});
 ```
-Referenz: `setFanStep(step: Int)` / `setFanLevel(level: Int)` in `RedMagicCooler6Pro.kt:321,336`.
-Ob Werte außerhalb 40–80 akzeptiert werden, ist ungetestet – nicht spekulativ senden.
 
----
+**Unterschied zum 6 Pro:** Dort sind es 9 Stufen mit einer nicht-linearen Wertetabelle
+(`0x28…0x50`, siehe `PROTOCOL.md`), keine lineare Formel bis `0x64`. Auf 6-Pro-Hardware zuerst
+prüfen, ob Werte über `0x50` überhaupt angenommen werden.
 
-## 3. LED ein/aus
+### 2. Intelligente Temperaturregelung
 
-| | |
+**Deutscher Name:** Smart-Modus / Intelligente Kühlung
+
+Der Kühler regelt die Lüfterstufe selbständig nach Temperatur, keine manuelle Stufe nötig.
+
+| Characteristic | Wert |
 |---|---|
-| Characteristic | `0x1013`, Read + Write (kein CCCD, also keine Notify-Subscription möglich) |
-| Wert | 4 Byte, **feste Werte, kein Toggle** |
-| Status lesbar | ja, per `Read` |
+| `0x1011` | `0x02` |
+| `0x1017` | `0x00` |
+| `0x1018` | `0x01` |
 
-| Bytes | Bedeutung |
-|---|---|
-| `01 00 00 00` | LED an |
-| `06 00 00 00` | LED aus |
-
-**Implementierung:**
-```kotlin
-val LED_ON = byteArrayOf(0x01, 0x00, 0x00, 0x00)
-val LED_OFF = byteArrayOf(0x06, 0x00, 0x00, 0x00)
-gatt.writeCharacteristic(char0x1013, LED_ON, WRITE_TYPE_DEFAULT)
+```java
+write(c1011, new byte[]{0x02});
+write(c1017, new byte[]{0x00});
+write(c1018, new byte[]{0x01});
 ```
-Referenz: `setLedEnabled(enabled: Boolean)` in `RedMagicCooler6Pro.kt:365`.
 
-**Falle:** `LED_ON` und `LED_OFF` nicht kurz hintereinander senden – der Kühler blinkt dann nur
-kurz auf und fällt in den Aus-Zustand zurück. Zwischen den Aufrufen etwas warten oder den
-gelesenen Zustand prüfen.
+Entspricht inhaltlich der „Automatischen Temperaturregelung“ (`0x1018`) im 6-Pro-Protokoll, wird
+hier aber immer zusammen mit `0x1011` und `0x1017` als festes Bündel gesetzt statt einzeln
+umgeschaltet.
 
-Ob die ersten Bytes `02`–`05` weitere Lichteffekte auswählen, ist **nicht getestet** – Goper
-sendet nur `01` und `06`.
+### 3. Berserker-Modus
 
----
+**Deutscher Name:** Berserker-Modus (chin. 破坏神, wörtlich „Zerstörer-Gott“)
 
-## 4. Diablo-Modus ("Zerstörer"-Modus, lauter/aggressiver)
+Maximale, aggressive Kühlleistung – lauter Lüfter für schnellere Wärmeabfuhr.
 
-| | |
+| Characteristic | Wert |
 |---|---|
-| Characteristic | `0x1017`, Read + Write |
-| Wert | 1 Byte: `0x01` = an, `0x00` = aus |
-| Status lesbar | ja, per `Read` |
+| `0x1011` | `0x02` |
+| `0x1018` | `0x00` |
+| `0x1012` | `0x50` (Lüfter auf Stufe fest, nicht die aktuell gewählte manuelle Stufe) |
+| `0x1017` | `0x01` |
 
-**Implementierung:**
-```kotlin
-gatt.writeCharacteristic(char0x1017, byteArrayOf(0x01), WRITE_TYPE_DEFAULT) // an
+```java
+write(c1011, new byte[]{0x02});
+write(c1018, new byte[]{0x00});
+write(c1012, new byte[]{0x50});
+write(c1017, new byte[]{0x01});
 ```
-Referenz: `setDiabloMode(enabled: Boolean)` in `RedMagicCooler6Pro.kt:342`.
 
-**Hinweis:** Beim Umschalten passiert weder hörbar noch in der Telemetrie (`0x1016`) sofort etwas.
-Das ist auch bei der Original-App so – der Modus wirkt vermutlich erst unter echter Last (warmes,
-angedocktes Telefon). Zum Testen den Wert zurücklesen statt auf eine hörbare Änderung zu warten.
+Entspricht dem „Diablo-Modus“ im 6-Pro-Protokoll (`0x1017 = 0x01`), wird hier aber nicht isoliert
+geschaltet, sondern immer zusammen mit einer festen Lüfterstufe (`0x1012 = 0x50`) als Preset.
 
----
+### 4. Kühlung ausschalten
 
-## 5. Automatische Temperaturregelung ein/aus
+**Deutscher Name:** Kühlung ausschalten
 
-| | |
+| Characteristic | Wert |
 |---|---|
-| Characteristic | `0x1018`, Read + Write |
-| Wert | 1 Byte: `0x01` = an (Kühler regelt Lüfterstufe selbst), `0x00` = aus (manuell über `0x1012`) |
-| Status lesbar | ja, per `Read` |
+| `0x1011` | `0x02` |
+| `0x1018` | `0x00` |
+| `0x1012` | `0x00` |
+| `0x1017` | `0x00` |
 
-**Implementierung:**
-```kotlin
-gatt.writeCharacteristic(char0x1018, byteArrayOf(0x01), WRITE_TYPE_DEFAULT)
+```java
+write(c1011, new byte[]{0x02});
+write(c1018, new byte[]{0x00});
+write(c1012, new byte[]{0x00});
+write(c1017, new byte[]{0x00});
 ```
-Referenz: `setAutoTemperatureControl(enabled: Boolean)` in `RedMagicCooler6Pro.kt:347`.
+
+**Wichtiger Unterschied zum 6-Pro-Protokoll:** Dort schaltet `0x1011 = 0x03` die Kühlung
+vollständig ab, `0x02` bedeutet „an“. In diesem Projekt taucht der Wert `0x03` an **keiner** Stelle
+im Code auf – `0x1011` wird immer auf `0x02` gesetzt, auch beim „Ausschalten“. Aus geschaltet wird
+hier ausschließlich über die Lüfterstufe `0x1012 = 0x00`. Ob `0x1011 = 0x03` beim 8 Pro überhaupt
+existiert, ist aus diesem Code nicht ersichtlich – es wird dort schlicht nie gesendet.
 
 ---
 
-## 6. Temperatur auslesen
+## LED / Licht
 
-| | |
-|---|---|
-| Characteristic | `0x1015`, Read + **Notify** (funktioniert, hat ein CCCD) |
-| alternativ | `0x1014`, nur Read, gleicher Wert, kein CCCD |
-| Format | 2 Byte, `04 TT` → `TT` ist die Temperatur in °C als einzelnes Byte |
+Alles über Characteristic `0x1013`.
 
-`0x1015` sendet etwa 1×/s ein Paket, abwechselnd `04 TT` (Temperatur) und `05 80` (fester Platzhalter-
-Wert, Bedeutung unklar).
+### 5. Voreingestellte native Lichtmodi
 
-**Implementierung (Notify abonnieren):**
-```kotlin
-gatt.setCharacteristicNotification(char0x1015, true)
-val cccd = char0x1015.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
-cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-gatt.writeDescriptor(cccd)
-// im Callback: if (value[0] == 0x04) temperaturCelsius = value[1]
+**Deutscher Name:** Native Lichtmodi
+
+4 Byte `[Modus, R, G, B]`, direkt an den Kühler:
+
+| Button | Deutsche Bezeichnung | Aufruf | Gesendete Bytes |
+|---|---|---|---|
+| „模式01 默认/联动" | Modus 1 – Standard/Synchronisiert | `sendNativeLight(1, 0, 0, 0)` | `01 00 00 00` |
+| „模式03 + RGB" | Modus 3 – mit freier Farbe | `sendNativeLight(3, r, g, b)` | `03 RR GG BB` |
+| „模式04 + RGB" | Modus 4 – mit freier Farbe | `sendNativeLight(4, r, g, b)` | `04 RR GG BB` |
+| „模式06 原生" | Modus 6 – nativ | `sendNativeLight(6, 0, 0, 0)` | `06 00 00 00` |
+
+```java
+public void sendNativeLight(int mode, int r, int g, int b) {
+    byte[] data = {(byte) mode, (byte) r, (byte) g, (byte) b};
+    write(c1013, data);
+}
 ```
-Referenz: `enqueueEnableNotify` + `applyNotifyValue` in `RedMagicCooler6Pro.kt`.
+
+**Unterschied zum 6 Pro:** Dort sind nur zwei feste 4-Byte-Werte verifiziert:
+`01 00 00 00` = LED an, `06 00 00 00` = LED aus – **kein** Modus mit freier Farbe. Interessant:
+Byte `06` ist beim 6 Pro „aus“, hier ist es „nativer Modus 6“. Vor dem Übernehmen unbedingt an
+echter 6-Pro-Hardware testen, ob `06 00 00 00` dort wirklich ausschaltet oder etwas anderes tut.
+
+### 6. Einzelne LED einfärben
+
+**Deutscher Name:** Einzel-LED-Farbe (Pixel-Steuerung)
+
+Der Kühler hat 16 einzeln ansteuerbare LEDs. Jede wird über eine zweiteilige Sequenz gesetzt
+(Vorbereiten, dann Bestätigen):
+
+```java
+public void sendPerPixelColor(int ledIndex, int r, int g, int b) {
+    write(c1013, new byte[]{(byte) 0xF0, (byte) ledIndex, (byte) r, (byte) g});  // Vorbereiten
+    write(c1013, new byte[]{(byte) 0xF1, (byte) ledIndex, (byte) b, 0x00});       // Bestätigen
+}
+```
+
+In der App: LED-Nummer (1–16) per Button auswählen, Farbe per RGB-Schieberegler einstellen,
+„发送当前 RGB" (**aktuelle RGB-Farbe senden**) drücken.
+
+**Nicht bestätigt für den 6 Pro** – dort ist nur ein einziges festes 4-Byte-Kommando fürs Ganze
+Gerät belegt, keine Einzel-LED-Adressierung.
+
+### 7. Alle LEDs ausschalten
+
+**Deutscher Name:** Alle LEDs ausschalten
+
+```java
+public void turnOffAll() {
+    stopAnimation();
+    for (int i = 0; i < 16; i++) {
+        sendPerPixelColor(i, 0, 0, 0);
+    }
+}
+```
+
+Setzt alle 16 LEDs einzeln auf Schwarz (0,0,0), statt eines einzigen Aus-Kommandos.
+
+### 8. Lichteffekte / Animationen
+
+**Deutscher Name:** Lichteffekte
+
+30 vorprogrammierte Animationen. Jede berechnet clientseitig eine Bildfolge und schreibt sie
+per Einzel-LED-Sequenz (siehe Funktion 6) an den Kühler. Gestoppt werden sie über
+**„Alle Effekte stoppen"** (`stopAnimation()`).
+
+| # | Deutscher Name | Methode | Parameter |
+|---|---|---|---|
+| 1 | Verfolgungsjagd | `chaseAnimation()` | – |
+| 2 | Regenbogen-Verfolgung | `rainbowChase()` | – |
+| 3 | Regenbogen-Kreislauf | `rainbowCycle()` | – |
+| 4 | Atmen | `breathingEffect(r, g, b)` | Farbe |
+| 5 | Welle | `waveEffect()` | – |
+| 6 | Sternschnuppe | `meteorEffect()` | – |
+| 7 | Stroboskop | `strobeEffect(r, g, b)` | Farbe |
+| 8 | Theater-Lauflicht | `theaterChase(r, g, b)` | Farbe |
+| 9 | Auffüllen | `colorWipe(r, g, b)` | Farbe |
+| 10 | Feuer | `fireEffect()` | – |
+| 11 | Wasser | `waterEffect()` | – |
+| 12 | Sonnenaufgang | `sunriseEffect()` | – |
+| 13 | Sonnenuntergang | `sunsetEffect()` | – |
+| 14 | Polarlicht | `auraBorealis()` | – |
+| 15 | Kerzenflackern | `candleFlicker()` | – |
+| 16 | Doppel-Verfolgung | `dualChase()` | – |
+| 17 | Ping-Pong | `pingPong()` | – |
+| 18 | Spirale | `spiral()` | – |
+| 19 | Zufälliges Blinken | `randomBlink()` | – |
+| 20 | Schlange | `snake()` | – |
+| 21 | Scanner (KITT-Effekt) | `scanner()` | – |
+| 22 | Komet | `comet()` | – |
+| 23 | Farbverlauf | `colorFade(r1,g1,b1, r2,g2,b2)` | zwei Farben |
+| 24 | Regenbogen-Verlauf | `rainbowFade()` | – |
+| 25 | Funkeln | `twinkle(r, g, b)` | Farbe |
+| 26 | Glitzern | `sparkle(r, g, b)` | Farbe |
+| 27 | Puls | `pulse(r, g, b)` | Farbe |
+| 28 | Geteilt (links/rechts) | `halfAndHalf(r1,g1,b1, r2,g2,b2)` | zwei Farben |
+| 29 | Wechselnd | `alternate(r, g, b)` | Farbe |
+| 30 | Ladebalken | `loading(r, g, b)` | Farbe |
+
+**Nicht bestätigt für den 6 Pro** – wie bei Funktion 5 und 6 ist unklar, ob dieselbe
+Pixel-Adressierung auf dem 6-Pro-Kühler überhaupt existiert.
 
 ---
 
-## 7. Nicht nutzbar / ungeklärt
+## Was in diesem Projekt fehlt (im Vergleich zum 6-Pro-Protokoll)
 
-| Characteristic | Status |
+Diese App liest nichts vom Kühler zurück – kein Status, keine Temperatur:
+
+| Funktion (nur beim 6 Pro belegt) | Characteristic |
 |---|---|
-| `0x1016` | Notify, 16-Byte-Pakete, nur Byte 13 ändert sich laufend – unbekannte Telemetrie (Spannung? Zähler?), nicht dekodiert, für die Kernfunktionen nicht nötig |
-| `0x1019` | nur Read, Schreiben wird mit `ATT_ERROR_WRITE_NOT_PERMITTED` abgelehnt |
-| Service `00010203-0405-0607-0809-0a0b0c0d1912` | sieht nach einem Telink-OTA/Firmware-Update-Profil aus. **Nicht anfassen** – ein Testschreiben mit falschen Daten hat die Verbindung sofort getrennt (vermutlich eine Sicherung in der OTA-Logik) |
+| Temperatur auslesen | `0x1014` (Read), `0x1015` (Read + Notify) |
+| Unbekannte Telemetrie | `0x1016` (Notify) |
+| Unbekanntes Nur-Lese-Register | `0x1019` |
+
+Details dazu stehen in [`PROTOCOL.md`](PROTOCOL.md). Ob diese Characteristics auf dem 8-Pro-Kühler
+genauso funktionieren, ist unbekannt, weil dieses Projekt sie nie anspricht.
 
 ---
 
-## Zum Vergleich: RedMagic 8 Pro (anderes Community-Projekt)
+## Offene Punkte vor dem Einsatz auf echter 6-Pro-Hardware
 
-Das Projekt [`jty657/RedMagic8Pro-Cooler-Controller`](https://github.com/jty657/RedMagic8Pro-Cooler-Controller)
-steuert einen anderen Kühler (8 Pro statt 6 Pro), nutzt aber dieselben Characteristic-Nummern.
-Unterschiede zur obigen Tabelle:
+1. **`0x1011 = 0x03`** (Kühlung aus laut 6-Pro-Protokoll) wird hier nie gesendet – prüfen, ob es
+   auf dem 6 Pro weiterhin gebraucht wird oder ob „aus“ auch dort über `0x1012 = 0x00` geht.
+2. **LED-Modi 3, 4 und die Pixel-Adressierung** (`0xF0`/`0xF1`-Präfix) sind für den 6 Pro nicht
+   verifiziert – testen, bevor sie in eine 6-Pro-App eingebaut werden.
+3. **Lüfterformel:** 6 Pro hat 9 Stufen mit fester Wertetabelle, dieses Projekt 10 Stufen linear
+   bis `0x64` – prüfen, welche Werte der 6-Pro-Kühler oberhalb `0x50` tatsächlich annimmt.
 
-- **Lüfter:** 10 Stufen statt 9, lineare Formel `0x28 + 4×(Stufe-1)` (0x28…0x64) statt Wertetabelle.
-  Setzt dabei immer `0x1011=02`, `0x1017=00`, `0x1018=00` mit.
-- **Diablo-Modus:** wird nicht einzeln geschaltet, sondern ist Teil eines "Boost"-Presets
-  (`0x1011=02, 0x1012=0x50, 0x1017=01, 0x1018=00` in einem Rutsch).
-- **Smart-Modus:** `0x1011=02, 0x1017=00, 0x1018=01` – overlap mit "Auto-Temp" oben, aber als festes
-  Preset statt einzeln toggle-bar.
-- **LED (`0x1013`):** komplett anderes Format – 4 Byte `[Modus, R, G, B]` mit Dutzenden Animations-
-  Presets, nicht die feste An/Aus-Sequenz `01 00 00 00` / `06 00 00 00` von oben.
-
-Für den 6 Pro gilt die Tabelle oben, nicht das 8-Pro-Verhalten. Bei Unsicherheit lieber mit der
-[BLE-Diagnose-App](ble-diagnose/) gegen die echte Hardware verifizieren statt das 8-Pro-Verhalten zu
-übernehmen.
+Am zuverlässigsten lässt sich das mit der [BLE-Diagnose-App](ble-diagnose/) dieses Repos gegen die
+echte Hardware verifizieren: Wert schreiben, per `Read` zurücklesen, Verhalten beobachten.
