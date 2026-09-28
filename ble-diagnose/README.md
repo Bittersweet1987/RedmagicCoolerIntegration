@@ -29,6 +29,8 @@ der optionale Verbindungstest liest nur.
 Oben im Log steht eine **Zusammenfassung** mit `[FEHLER]`, `[WARNUNG]`, `[HINWEIS]`
 und `[OK]`, darunter die Details mit Zeitstempeln.
 
+Ausführliche Beschreibung für Entwickler (APIs, Parameter, Log lesen, nachbauen): [DEVELOPER.md](DEVELOPER.md)
+
 Die App deklariert `BLUETOOTH_SCAN` absichtlich **ohne** `neverForLocation` und fragt
 den Standort mit ab, damit Android keine Scan-Ergebnisse wegfiltert. Findet diese
 App Geräte und eine andere App nicht, liegt es an der anderen App.
